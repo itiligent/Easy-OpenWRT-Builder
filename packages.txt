@@ -1,0 +1,23 @@
+# packages.txt
+# Lines beggining with # are treated as comments
+# Add one package per line e.g.: usbutils
+# Remove a default package with e.g.: -dnsmasq
+blockd
+block-mount
+kmod-fs-ext4
+kmod-usb2
+kmod-usb3
+kmod-usb-storage
+kmod-usb-core
+usbutils
+-dnsmasq
+dnsmasq-full
+luci
+luci-app-ddns
+luci-app-samba4
+luci-app-sqm
+sqm-scripts
+luci-app-attendedsysupgrade
+curl
+nano
+vim

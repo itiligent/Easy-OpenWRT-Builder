@@ -1,10 +1,10 @@
-# 🚀 Custom OpenWRT x86 Image Build & VM Conversion Script
+# 🚀 Custom OpenWRT x86 Image Build & VM Conversion Script (using nix)
 
 ### A simplfied approach to creating custom OpenWRT firmware images:
 - Manage your own list(s) of OpenWRT packages to install
 - Optionally resize default embedded partitions to unlock extra filesystem storage
 - Optionally convert new OpenWRT builds into into QEMU, Virtualbox, HyperV or VMware virtual machine images
-- Automated installation of all Linux dependencies required to build OpenWRT images
+- Automated installation of all Linux dependencies required to build OpenWRT images using the nix package manager
 
 #### ⚙️ Script Option Prompts
 
@@ -16,27 +16,31 @@
    
    ![image](https://github.com/itiligent/OpenWRT-ImageBuilder/assets/94789708/2f3ff65a-1195-4fd1-bf32-44852cb82acd)
 
-6. When the script completes, your new set of build images is located at `$(pwd)/openwrt_build_output/firmware_images`, and their corresponding converted VM images at `$(pwd)openwrt_build_output/vm`.
+6. When the script completes, your new set of build images is located at `$(pwd)/openwrt_build_output/firmware_images`, and their corresponding converted VM images at `$(pwd)/openwrt_build_output/vm`.
 
 ## 🛠️ Prerequisites
 
-Any recent x86 Debian-flavored OS with sudo installed should work fine. Curl and all image building Linux dependencies are automatically installed on first run.
+Any recent x86 linux should work fine. 
+Installer looks for the nix package manager. If it doesn't find it, it asks you if you want to install it.
+Dependencies are subsequently installed using nix.
 Windows subsystem for Linux users have a few more steps: https://openwrt.org/docs/guide-developer/toolchain/wsl
 
 ## 📖 Instructions
 
 
-1. 📥 Download the image builder script and make it executable:
+1. 📥 Clone the git repo then run the install script:
    ```
-   chmod +x x86-imagebuilder.sh
+   ./install.sh
    ```
+   this will create the `buildimage` script
 
-2. 🛠️ Customize your package list in the `CUSTOM_PACKAGES` section. The included list of packages are examples and can be removed. Ensure each package is compatible with your OpenWRT build target & doesn't conflict with others. *(Search https://openwrt.org/packages/start for your desired package names or use the OpenWRT online firmware selector to check for any package conflicts.)*
+2. 🛠️ Customize your package list in the `packages.txt` file. The included list of packages are examples and can be removed. Ensure each package is compatible with your OpenWRT build target & doesn't conflict with others. *(Search https://openwrt.org/packages/start for your desired package names or use the OpenWRT online firmware selector to check for any package conflicts.)*
 
+3. (ADVANCED) - target platform and architecture can be changed by editing the `target.txt` file 
 
-3. ▶️ Run the script as sudo and follow the setup prompts:
+4. ▶️ Run the `buildimage` script and follow the setup prompts:
    ```
-   sudo ./x86-imagebuilder.sh
+   ./buildimage
    ```
 
 

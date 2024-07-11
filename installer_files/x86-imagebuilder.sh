@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #######################################################################################################################
 # Build and virtualize custom OpenWRT images for x86 v1
 # DO NOT TRY TO RESIZE HARDWARE ROUTER FLASH PARTITiONS, RESIZE AND VM OPTIONS FOR x86 BUILDS ONLY!!
@@ -14,16 +14,16 @@ LRED='\033[0;91m'
 LYELLOW='\033[0;93m'
 NC='\033[0m' # No Colour
 
-if ! [[ $(id -u) = 0 ]]; then
-    echo
-    echo -e "${LRED}Please run this script as sudo.${NC}" 1>&2
-    echo
-    exit 1
-fi
+# if ! [[ $(id -u) = 0 ]]; then
+#     echo
+#     echo -e "${LRED}Please run this script as sudo.${NC}" 1>&2
+#     echo
+#     exit 1
+# fi
 
-echo -e "${CYAN}Checking for curl...${NC}"
-apt-get update -qq
-apt-get install curl -qq -y
+# echo -e "${CYAN}Checking for curl...${NC}"
+# apt-get update -qq
+# apt-get install curl -qq -y
 
 clear
 
@@ -31,19 +31,33 @@ clear
 # ADD YOUR CUSTOM PACKAGE RECIPE HERE
 #######################################################################################################################
 
-# Below are example packages only and can be deleted
-    CUSTOM_PACKAGES="blockd block-mount kmod-fs-ext4 kmod-usb2 kmod-usb3 kmod-usb-storage kmod-usb-core usbutils \
-    -dnsmasq dnsmasq-full luci luci-app-ddns luci-app-samba4 luci-app-sqm sqm-scripts \
-	luci-app-attendedsysupgrade curl nano"
+# Below is example only, change package list as needed.
+ #    CUSTOM_PACKAGES="blockd block-mount kmod-fs-ext4 kmod-usb2 kmod-usb3 kmod-usb-storage kmod-usb-core usbutils \
+ #    -dnsmasq dnsmasq-full luci luci-app-ddns luci-app-samba4 luci-app-sqm sqm-scripts \
+	# luci-app-attendedsysupgrade curl nano"
+packages=()
+while IFS= read -r line; do
+  [[ "$line" =~ ^# ]] && continue
+  packages+=("$line")
+done < packages.txt
 
+CUSTOM_PACKAGES="${packages[@]}"
+
+echo "Packages to include:"
+echo $CUSTOM_PACKAGES
+ 
 #######################################################################################################################
 # Mandatory static script parameters - do not edit unless expert
 #######################################################################################################################
 
-    TARGET="x86"             # x86, mvebu etc
-    ARCH="64"                # 64, cortexa9 etc
-    IMAGE_PROFILE="generic"  # x86 = generic, linksys_wrt1900acs etc. For profile options run $SOURCE_DIR/make info
+    # TARGET="x86"             # x86, mvebu etc
+    # ARCH="64"                # 64, cortexa9 etc
+    # IMAGE_PROFILE="generic"  # x86 = generic, linksys_wrt1900acs etc. For profile options run $SOURCE_DIR/make info
 
+    source target.txt
+    echo "Target is: $TARGET"
+    echo "Arch is: $ARCH"
+    echo "Profile is: $IMAGE_PROFILE"
 #######################################################################################################################
 # Initialise script prompt variables - do not edit unless expert
 #######################################################################################################################
@@ -57,6 +71,7 @@ clear
     IMAGE_TAG=""             # ID tag is added to the completed image filename to uniquely identify the built image(s)
     CREATE_VM=""             # Create VMware images of the final build true/false
     BUILD_LOG="$(pwd)/build.log" # Creates a build log in the local working directory
+    rm -f "$BUILD_LOG"
     RELEASE_URL="https://downloads.openwrt.org/releases/" # Where to obtain latest stable version number
 
 echo -e ${CYAN}
@@ -221,8 +236,8 @@ mkdir -p "${BUILD_ROOT}"
 mkdir -p "${OUTPUT}"
 mkdir -p "${INJECT_FILES}"
 if [[ ${CREATE_VM} = true ]] && [[ ${IMAGE_PROFILE} = "generic" ]]; then mkdir -p "${VMDIR}" ; fi
-chown -R $SUDO_USER $INJECT_FILES
-chown -R $SUDO_USER $BUILD_ROOT
+# chown -R $SUDO_USER $INJECT_FILES
+# chown -R $SUDO_USER $BUILD_ROOT
 
 # Option to pre-configure images with injected config files
 echo -e ${LYELLOW}
@@ -231,9 +246,9 @@ echo -e ${NC}
 
 # Install OWRT build system dependencies for recent Ubuntu/Debian.
 # See here for other distro dependencies: https://openwrt.org/docs/guide-developer/toolchain/install-buildsystem
-    sudo apt-get update  2>&1 | tee -a ${BUILD_LOG}
-    sudo apt-get install -y build-essential clang flex bison g++ gawk gcc-multilib g++-multilib \
-    gettext git libncurses-dev libssl-dev python3-distutils rsync unzip zlib1g-dev file wget qemu-utils zstd  2>&1 | tee -a ${BUILD_LOG}
+    # sudo apt-get update  2>&1 | tee -a ${BUILD_LOG}
+    # sudo apt-get install -y build-essential clang flex bison g++ gawk gcc-multilib g++-multilib \
+    # gettext git libncurses-dev libssl-dev python3-distutils rsync unzip zlib1g-dev file wget qemu-utils zstd  2>&1 | tee -a ${BUILD_LOG}
 
 # Download the image builder source if we haven't already
 if [ ! -f "${SOURCE_FILE}" ]; then
@@ -247,8 +262,8 @@ if [ -f "${SOURCE_FILE}" ]; then
 fi
 
 # Remove sudo access limits on source download
-    chown -R $SUDO_USER:root $SOURCE_FILE
-    chown -R $SUDO_USER:root $SOURCE_DIR
+    # chown -R $SUDO_USER:root $SOURCE_FILE
+    # chown -R $SUDO_USER:root $SOURCE_DIR
 
 # Reconfigure the partition sizing source files (for x86 build only)
 if [[ ${MOD_PARTSIZE} = true ]] && [[ ${IMAGE_PROFILE} = "generic" ]]; then
@@ -262,6 +277,7 @@ fi
 # Start a clean image build with the selected packages
     cd $(pwd)/"${SOURCE_DIR}"/
     make clean 2>&1 | tee -a ${BUILD_LOG}
+    # mkdir tmp
     make image PROFILE="${IMAGE_PROFILE}" PACKAGES="${CUSTOM_PACKAGES}" EXTRA_IMAGE_NAME="${IMAGE_TAG}" FILES="${INJECT_FILES}" BIN_DIR="${OUTPUT}" 2>&1 | tee -a ${BUILD_LOG}
 
 if [[ ${CREATE_VM} = true ]]; then

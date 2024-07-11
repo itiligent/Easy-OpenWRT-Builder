@@ -1,0 +1,12 @@
+# Ignore Everything
+*
+# Except
+!.gitignore
+!installer_files
+!installer_files/flake.nix
+!installer_files/x86-imagebuilder.sh
+!install.sh
+!packages.txt
+!README.md
+!target.txt
+!uninstall.sh

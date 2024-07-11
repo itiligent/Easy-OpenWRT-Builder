@@ -1,0 +1,6 @@
+# target.sh
+# Change the below values to suit your target architecture
+# Or leave as is for x86
+TARGET="x86"             # x86, mvebu etc
+ARCH="64"                # 64, cortexa9 etc
+IMAGE_PROFILE="generic"  # x86 = generic, linksys_wrt1900acs etc. For profile options run $SOURCE_DIR/make info
