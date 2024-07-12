@@ -14,16 +14,36 @@ LRED='\033[0;91m'
 LYELLOW='\033[0;93m'
 NC='\033[0m' # No Colour
 
-if ! [[ $(id -u) = 0 ]]; then
+# Make sure the user is NOT running this script as root
+if [[ $EUID -eq 0 ]]; then
     echo
-    echo -e "${LRED}Please run this script as sudo.${NC}" 1>&2
-    echo
+    echo -e "${LRED}This script must NOT be run as root, it will prompt for sudo when needed." 1>&2
+    echo -e ${NC}
     exit 1
 fi
 
+# Check if sudo is installed. (Debian does not always include sudo by default.)
+if ! command -v sudo &> /dev/null; then
+    echo "${LRED}Sudo is not installed. Please install sudo."
+    echo -e ${NC}
+    exit 1
+fi
+
+# Make sure the user running setup is a member of the sudo group
+if ! id -nG "$USER" | grep -qw "sudo"; then
+    echo
+    echo -e "${LRED}The current user (${USER}) must be a member of the 'sudo' group. Run: sudo usermod -aG sudo ${USER}${NC}" 1>&2
+    exit 1
+fi
+
+# Trigger a prompt for sudo so it is used only where needed
+echo
+echo -e "${CYAN}Script requires sudo privileges for some actions${NC}"
+echo
+sudo apt-get update -qq
+echo
 echo -e "${CYAN}Checking for curl...${NC}"
-apt-get update -qq
-apt-get install curl -qq -y
+sudo apt-get install curl -qq -y
 
 clear
 
@@ -56,12 +76,7 @@ clear
     ROOT_RESIZE_DEF="104"    # OWRT default is 104 MB. Don't go above 8192.
     IMAGE_TAG=""             # ID tag is added to the completed image filename to uniquely identify the built image(s)
     CREATE_VM=""             # Create VMware images of the final build true/false
-    BUILD_LOG="$(pwd)/build.log" # Creates a build log in the local working directory
     RELEASE_URL="https://downloads.openwrt.org/releases/" # Where to obtain latest stable version number
-
-echo -e ${CYAN}
-echo "Image Builder activity will be logged to ${BUILD_LOG}"
-echo
 
 # Prompt for the desired OWRT version
 if [[ -z ${VERSION} ]]; then
@@ -122,7 +137,7 @@ fi
 if [[ -z ${CREATE_VM} ]] && [[ ${IMAGE_PROFILE} = "generic" ]]; then
     echo
     echo -e "${CYAN}Virtual machine image conversion:${NC}"
-    echo -e -n "    x86 ONLY!: Convert new OpenWRT images to virtual machines? (VMware) [default = n] [y/N]: "
+    echo -e -n "    x86 ONLY!: Convert new OpenWRT images to a virtual machine format? [default = n] [y/N]: "
     read PROMPT
     if [[ ${PROMPT} =~ ^[Yy]$ ]]; then
         CREATE_VM=true
@@ -195,6 +210,7 @@ BUILD_ROOT="$(pwd)/openwrt_build_output"
 OUTPUT="${BUILD_ROOT}/firmware_images"
 VMDIR="${BUILD_ROOT}/vm"
 INJECT_FILES="$(pwd)/openwrt_inject_files"
+BUILD_LOG="${BUILD_ROOT}/owrt-build.log" # Creates a build log in the local working directory
 
 # Set SOURCE_DIR based on download file extension (annoyingly snapshots changed to tar.zst. vs releases are tar.xz)
 SOURCE_EXT="${SOURCE_FILE##*.}"
@@ -221,8 +237,6 @@ mkdir -p "${BUILD_ROOT}"
 mkdir -p "${OUTPUT}"
 mkdir -p "${INJECT_FILES}"
 if [[ ${CREATE_VM} = true ]] && [[ ${IMAGE_PROFILE} = "generic" ]]; then mkdir -p "${VMDIR}" ; fi
-chown -R $SUDO_USER $INJECT_FILES
-chown -R $SUDO_USER $BUILD_ROOT
 
 # Option to pre-configure images with injected config files
 echo -e ${LYELLOW}
@@ -245,10 +259,6 @@ fi
 if [ -f "${SOURCE_FILE}" ]; then
      ${EXTRACT} "${SOURCE_FILE}" | tee -a ${BUILD_LOG}
 fi
-
-# Remove sudo access limits on source download
-    chown -R $SUDO_USER:root $SOURCE_FILE
-    chown -R $SUDO_USER:root $SOURCE_DIR
 
 # Reconfigure the partition sizing source files (for x86 build only)
 if [[ ${MOD_PARTSIZE} = true ]] && [[ ${IMAGE_PROFILE} = "generic" ]]; then

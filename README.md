@@ -16,11 +16,11 @@
    
    ![image](https://github.com/itiligent/OpenWRT-ImageBuilder/assets/94789708/2f3ff65a-1195-4fd1-bf32-44852cb82acd)
 
-6. When the script completes, your new set of build images is located at `$(pwd)/openwrt_build_output/firmware_images`, and their corresponding converted VM images at `$(pwd)openwrt_build_output/vm`.
+6. When the script completes, your new OpenWRT images are located at `$(pwd)/openwrt_build_output/firmware_images`, and their corresponding converted VM images at `$(pwd)openwrt_build_output/vm`.
 
 ## 🛠️ Prerequisites
 
-Any recent x86 Debian-flavored OS with sudo installed should work fine. Curl and all image building Linux dependencies are automatically installed on first run.
+Any recent x86 Debian-flavored OS with the sudo package installed should work fine. Curl and all other image building Linux dependencies are automatically installed on first run (the user must have sudo permissions for initial install of dependency packages).
 Windows subsystem for Linux users have a few more steps: https://openwrt.org/docs/guide-developer/toolchain/wsl
 
 ## 📖 Instructions
@@ -34,9 +34,9 @@ Windows subsystem for Linux users have a few more steps: https://openwrt.org/doc
 2. 🛠️ Customize your package list in the `CUSTOM_PACKAGES` section. The included list of packages are examples and can be removed. Ensure each package is compatible with your OpenWRT build target & doesn't conflict with others. *(Search https://openwrt.org/packages/start for your desired package names or use the OpenWRT online firmware selector to check for any package conflicts.)*
 
 
-3. ▶️ Run the script as sudo and follow the setup prompts:
+3. ▶️ Run the script **without** sudo (it will prompt for sudo) and follow the setup prompts:
    ```
-   sudo ./x86-imagebuilder.sh
+   ./x86-imagebuilder.sh
    ```
 
 
