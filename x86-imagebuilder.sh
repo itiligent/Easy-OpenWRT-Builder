@@ -51,10 +51,26 @@ clear
 # ADD YOUR CUSTOM PACKAGE RECIPE HERE
 #######################################################################################################################
 
-# Below are example packages only and can be deleted
+# Basic example recipe, change these to your requirements.
     CUSTOM_PACKAGES="blockd block-mount kmod-fs-ext4 kmod-usb2 kmod-usb3 kmod-usb-storage kmod-usb-core usbutils \
     -dnsmasq dnsmasq-full luci luci-app-ddns luci-app-samba4 luci-app-sqm sqm-scripts \
 	luci-app-attendedsysupgrade curl nano"
+	
+# Good VMware ESXi x86 base supporting multi-wan (ppp, ppoe, iphone & adroid tether)
+#    CUSTOM_PACKAGES="block-mount blockd ca-bundle -dnsmasq dnsmasq-full sqm-scripts \
+#    kmod-fs-ext4 -kmod-amazon-ena -kmod-amd-xgbe -kmod-bnx2 -kmod-dwmac-intel -kmod-e1000 -kmod-e1000e \
+#    -kmod-forcedeth -kmod-igb -kmod-ixgbe -kmod-r8169 -kmod-phy-realek -kmod-tg3 kmod-igc kmod-vmxnet3 open-vm-tools \
+#    kmod-usb-core kmod-usb2 kmod-usb3 kmod-usb-storage kmod-usb-net kmod-usb-net-rndis kmod-usb-net-rtl8152 \
+#    kmod-usb-net-ipheth kmod-mt7915e kmod-mt7916-firmware libimobiledevice luci luci-app-ddns luci-app-https-dns-proxy \
+#    luci-app-mwan3 luci-app-openvpn luci-app-samba4 luci-app-sqm luci-app-attendedsysupgrade https-dns-proxy samba4-server \
+#    tcpdump socat rsync curl wsdd2 mwan3 openvpn-openssl wpad-basic-openssl usbutils nano zoneinfo-australia-nz usbmuxd"
+
+#   Vmware x86 base notes:
+#   kmod-mt7915e & kmod-mt7916-firmware adds wifi6e support via Asia RF mt7916-aw7916-npd
+#   kmod-usb-net-rtl8152 adds realtek 2.5Gbe usb to ethernet adapter support
+#   kmod-vmxnet3 adds Vmware ESXi 10Gbe support
+#   Recipie assumes only Intel i225/i226 NICs, various unneded default NICs (with a minus in front) are removed
+#   All other packages are a useful generic starting point
 
 #######################################################################################################################
 # Mandatory static script parameters - do not edit unless expert
@@ -149,16 +165,16 @@ fi
 # Display the VM conversion menu
 echo
 show_menu() {
-    echo "Select your preferred virtual machine format:"
-    echo "1) qcow2 :QEMU "
-    echo "2) eqd   :Enhanced QEMU"
-    echo "3) vdi   :Oracle Virutalbox"
-    echo "4) vhdx  :MS HyperV"
-    echo "5) vmdk  :VMware"
+    echo "    Select VM conversion format:"
+    echo "    1) QEMU...............: qcow2"
+    echo "    2) QEMU Enhanced......: eqd"
+    echo "    3) Oracle Virutalbox..: vdi"
+    echo "    4) MS HyperV..........: vhdx"
+    echo "    5) VMware.............: vmdk"  
 }
 read_choice() {
     local choice
-    read -p "Enter your choice (1-5): " choice
+    read -p "    Enter your choice (1-5): " choice
     echo $choice
 }
 conversion_cmd() {
@@ -178,7 +194,8 @@ conversion_cmd() {
             CONVERT="qemu-img convert -f raw -O vhdx"
             ;;
         5)
-            CONVERT="qemu-img convert -f raw -O vmdk"
+            CONVERT="qemu-img convert -f raw -O vmdk" # May require vmkfstools -i source.vmdk destintation.vmdk to boot
+
             ;;
         *)
             echo "Invalid choice. Please select a number between 1 and 5."
@@ -239,9 +256,12 @@ mkdir -p "${INJECT_FILES}"
 if [[ ${CREATE_VM} = true ]] && [[ ${IMAGE_PROFILE} = "generic" ]]; then mkdir -p "${VMDIR}" ; fi
 
 # Option to pre-configure images with injected config files
-echo -e ${LYELLOW}
-read -p $"Copy your (optional) config files to ${INJECT_FILES} now for inclusion into the new image, then hit enter to begin build..."
-echo -e ${NC}
+echo -e "${LYELLOW}"
+echo -e "    OPTIONALLY BAKE A CUSTOM CONFIG INTO OWRT IMAGES:"
+echo -e "    Copy OWRT config files to ${CYAN}${INJECT_FILES}${LYELLOW} before proceeding." 
+echo
+read -p "    Press ENTER to begin the OWRT build..."
+echo -e "${NC}"
 
 # Install OWRT build system dependencies for recent Ubuntu/Debian.
 # See here for other distro dependencies: https://openwrt.org/docs/guide-developer/toolchain/install-buildsystem
@@ -275,6 +295,10 @@ fi
     make image PROFILE="${IMAGE_PROFILE}" PACKAGES="${CUSTOM_PACKAGES}" EXTRA_IMAGE_NAME="${IMAGE_TAG}" FILES="${INJECT_FILES}" BIN_DIR="${OUTPUT}" 2>&1 | tee -a ${BUILD_LOG}
 
 if [[ ${CREATE_VM} = true ]]; then
+    # Extract all just before the image conversion type in the coversion command (in case of extra options/commands after '-O imagetype' )
+    EXT="${CONVERT##* -O }"   
+    # Extracy only the image conversion output file extention (e.g., 'vmdk')
+    EXT="${EXT%% *}"
     # Copy the new images to a separate directory for conversion to vm image
     cp $OUTPUT/*.gz $VMDIR
     # Create a list of new images to unzip
@@ -287,8 +311,8 @@ if [[ ${CREATE_VM} = true ]]; then
     for LIST in $VMDIR/*.img
     do
     echo $LIST
-    eval $CONVERT $LIST ${LIST%.*}.${CONVERT##* } 2>&1 | tee -a ${BUILD_LOG}
+    eval $CONVERT $LIST ${LIST%.*}.${EXT} 2>&1 | tee -a ${BUILD_LOG}
 	done
-    # Clean up
-    rm -f $VMDIR/*.img
+    # Optionally remove all extracted raw source images from $VMDIR 
+    # rm -f $VMDIR/*.img
 fi
