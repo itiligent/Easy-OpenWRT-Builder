@@ -1,9 +1,9 @@
 #!/bin/bash
 #######################################################################################################################
-# Build and virtualize custom OpenWRT images for x86 v1
-# DO NOT TRY TO RESIZE HARDWARE ROUTER FLASH PARTITiONS, RESIZE AND VM OPTIONS FOR x86 BUILDS ONLY!!
+# Build and virtualize custom OpenWRT images for x86
+# DO NOT RESIZE NAND ROUTER FLASH PARTITiONS, RESIZE IS FOR x86 BUILDS ONLY!!
 # David Harrop
-# June 2024
+# November 2024
 #######################################################################################################################
 
 clear
@@ -40,21 +40,20 @@ fi
 echo
 echo -e "${CYAN}Script requires sudo privileges for some actions${NC}"
 echo
-sudo apt-get update -qq
+sudo sudo -v
 echo
 echo -e "${CYAN}Checking for curl...${NC}"
-sudo apt-get install curl -qq -y
-
+sudo apt-get update -qq && sudo apt-get install curl -qq -y
 clear
 
 #######################################################################################################################
 # ADD YOUR CUSTOM PACKAGE RECIPE HERE
 #######################################################################################################################
 
-# Below are example packages only and can be deleted
-    CUSTOM_PACKAGES="blockd block-mount kmod-fs-ext4 kmod-usb2 kmod-usb3 kmod-usb-storage kmod-usb-core usbutils \
+# Basic example recipe, change these to your requirements.
+CUSTOM_PACKAGES="blockd block-mount kmod-fs-ext4 kmod-usb2 kmod-usb3 kmod-usb-storage kmod-usb-core usbutils \
     -dnsmasq dnsmasq-full luci luci-app-ddns luci-app-samba4 luci-app-sqm sqm-scripts \
-	luci-app-attendedsysupgrade curl nano"
+    luci-app-attendedsysupgrade curl nano luci-app-attendedsysupgrade"
 
 #######################################################################################################################
 # Mandatory static script parameters - do not edit unless expert
@@ -149,16 +148,16 @@ fi
 # Display the VM conversion menu
 echo
 show_menu() {
-    echo "Select your preferred virtual machine format:"
-    echo "1) qcow2 :QEMU "
-    echo "2) eqd   :Enhanced QEMU"
-    echo "3) vdi   :Oracle Virutalbox"
-    echo "4) vhdx  :MS HyperV"
-    echo "5) vmdk  :VMware"
+    echo "    Select VM conversion format:"
+    echo "    1) QEMU...............: qcow2"
+    echo "    2) QEMU Enhanced......: eqd"
+    echo "    3) Oracle Virutalbox..: vdi"
+    echo "    4) MS HyperV..........: vhdx"
+    echo "    5) VMware.............: vmdk"
 }
 read_choice() {
     local choice
-    read -p "Enter your choice (1-5): " choice
+    read -p "    Enter your choice (1-5): " choice
     echo $choice
 }
 conversion_cmd() {
@@ -178,7 +177,8 @@ conversion_cmd() {
             CONVERT="qemu-img convert -f raw -O vhdx"
             ;;
         5)
-            CONVERT="qemu-img convert -f raw -O vmdk"
+            CONVERT="qemu-img convert -f raw -O vmdk" # May require vmkfstools -i source.vmdk destintation.vmdk to boot
+
             ;;
         *)
             echo "Invalid choice. Please select a number between 1 and 5."
@@ -239,15 +239,34 @@ mkdir -p "${INJECT_FILES}"
 if [[ ${CREATE_VM} = true ]] && [[ ${IMAGE_PROFILE} = "generic" ]]; then mkdir -p "${VMDIR}" ; fi
 
 # Option to pre-configure images with injected config files
-echo -e ${LYELLOW}
-read -p $"Copy your (optional) config files to ${INJECT_FILES} now for inclusion into the new image, then hit enter to begin build..."
-echo -e ${NC}
+echo -e "${LYELLOW}"
+echo -e "    [Optional] TO BAKE A CUSTOM CONFIG INTO YOUR OWRT IMAGE"
+echo -e "    copy your OWRT backup config files to ${CYAN}${INJECT_FILES}${LYELLOW} before hitting enter..."
+echo
+read -p "    Press ENTER to begin the OWRT build..."
+echo -e "${NC}"
 
 # Install OWRT build system dependencies for recent Ubuntu/Debian.
 # See here for other distro dependencies: https://openwrt.org/docs/guide-developer/toolchain/install-buildsystem
-    sudo apt-get update  2>&1 | tee -a ${BUILD_LOG}
+
+# Get the Python 3 version
+PYTHON_VERSION=$(python3 --version 2>&1 | awk '{print $2}')
+
+# Split the Python3 version into major, minor, and patch components
+IFS='.' read -r -a VERSION_PARTS <<< "$PYTHON_VERSION"
+MAJOR=${VERSION_PARTS[0]}
+MINOR=${VERSION_PARTS[1]}
+
+# Compare the distro Python3 version and install the correct build dependencies
+if (( MAJOR < 3 )) || (( MAJOR == 3 && MINOR <= 11 )); then
+    echo "Python version is less than or equal to 3.11"
     sudo apt-get install -y build-essential clang flex bison g++ gawk gcc-multilib g++-multilib \
-    gettext git libncurses-dev libssl-dev python3-distutils rsync unzip zlib1g-dev file wget qemu-utils zstd  2>&1 | tee -a ${BUILD_LOG}
+    gettext git libncurses5-dev libssl-dev python3-distutils python3-setuptools rsync unzip zlib1g-dev file wget qemu-utils zstd  2>&1 | tee -a ${BUILD_LOG}
+else
+    echo "Python version is 3.12 or above"
+	sudo apt-get install -y build-essential clang flex bison g++ gawk gcc-multilib g++-multilib gettext git libncurses5-dev libssl-dev \
+    python3-setuptools rsync swig unzip zlib1g-dev file wget qemu-utils zstd 2>&1 | tee -a ${BUILD_LOG}
+fi
 
 # Download the image builder source if we haven't already
 if [ ! -f "${SOURCE_FILE}" ]; then
@@ -274,7 +293,12 @@ fi
     make clean 2>&1 | tee -a ${BUILD_LOG}
     make image PROFILE="${IMAGE_PROFILE}" PACKAGES="${CUSTOM_PACKAGES}" EXTRA_IMAGE_NAME="${IMAGE_TAG}" FILES="${INJECT_FILES}" BIN_DIR="${OUTPUT}" 2>&1 | tee -a ${BUILD_LOG}
 
+# Convert to virtual machine images
 if [[ ${CREATE_VM} = true ]]; then
+    # Extract all just before the image conversion type in the coversion command (in case of extra options/commands after '-O imagetype' )
+    EXT="${CONVERT##* -O }"
+    # Extracy only the image conversion output file extention (e.g., 'vmdk')
+    EXT="${EXT%% *}"
     # Copy the new images to a separate directory for conversion to vm image
     cp $OUTPUT/*.gz $VMDIR
     # Create a list of new images to unzip
@@ -283,12 +307,15 @@ if [[ ${CREATE_VM} = true ]]; then
     echo $LIST
     gunzip $LIST
     done
+
     # Convert the unzipped images
     for LIST in $VMDIR/*.img
     do
     echo $LIST
-    eval $CONVERT $LIST ${LIST%.*}.${CONVERT##* } 2>&1 | tee -a ${BUILD_LOG}
+    eval $CONVERT $LIST ${LIST%.*}.${EXT} 2>&1 | tee -a ${BUILD_LOG}
 	done
-    # Clean up
+
+    # Optionally remove all extracted raw source images from $VMDIR
     rm -f $VMDIR/*.img
 fi
+
