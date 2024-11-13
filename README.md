@@ -1,55 +1,93 @@
-# 🚀 Custom OpenWRT x86 Image Build & VM Conversion Script
+# 🚀 Custom OpenWRT Image Build & VM Conversion Script
 
-### A simplfied approach to creating custom OpenWRT firmware images:
-- Manage your own list(s) of OpenWRT packages to install
-- Optionally resize default embedded partitions to unlock extra filesystem storage
-- Optionally convert new OpenWRT builds into into QEMU, Virtualbox, HyperV or VMware virtual machine images
-- Automated installation of all Linux dependencies required to build OpenWRT images
+## A repeatable approach to custom OpenWRT image creation:
+- Manage & track your OpenWRT build recipes
+- Optionally resize default partitions to unlock extra root filesystem storage
+- Optionally convert OpenWRT images into into QEMU, Virtualbox, HyperV or VMware images
+- Automatic installation of OpenWRT Imagebuilder dependencies
 
-#### ⚙️ Script Option Prompts
+---
 
-1. Enter your preferred OpenWRT release version (or hit enter for latest snapshot version)
-2. Modify partition sizes or keep OpenWRT defaults? [y/n] (Y = follow the prompt's instructions for paritition resize)
-3. Enter an image filename tag (to help uniquely identify your new build image)
-4. **Optional**: Convert OpenWRT builds into virtual machine images? [y/n] (Y = select a VM disk format: qcow2, qed, vdi, vhdx or vmdk)
-5. **Optional**: Copy your custom OpenWRT config files into the build tree to permanently bake these into the new image
-   
-   ![image](https://github.com/itiligent/OpenWRT-ImageBuilder/assets/94789708/2f3ff65a-1195-4fd1-bf32-44852cb82acd)
+## ⚙️ Script Option Prompts
 
-6. When the script completes, your new OpenWRT images are located at `$(pwd)/openwrt_build_output/firmware_images`, and their corresponding converted VM images at `$(pwd)openwrt_build_output/vm`.
+1. Enter OpenWRT STABLE release version _(or hit enter for latest snapshot)_
+2. Modify partition sizes or keep OpenWRT defaults? [y/n] _(Y = follow the prompts)_
+3. Enter an image filename tag _(to uniquely identify your new image)_
+4. **Optional**: Convert OpenWRT images to VM disk image? [y/n] _(Y = select a VM format: qcow2, qed, vdi, vhdx or vmdk)_
+5. **Optional**: Bake a custom OpenWRT config into new OpenWRT images? _(follow on-screen directions)_
+6. When the script completes new images are located at:
+    -  Native Firmware: `$(pwd)/openwrt_build_output/firmware_images`
+    - Virtual Machine:`$(pwd)/openwrt_build_output/vm`
+
+      
+   ![image](https://github.com/itiligent/Easy-OpenWRT-Builder/blob/main/Screenshot.png)
+
+
+
+---
 
 ## 🛠️ Prerequisites
 
-Any recent x86 Debian-flavored OS with the sudo package installed should work fine. Curl and all other image building Linux dependencies are automatically installed on first run (the user must have sudo permissions for initial install of dependency packages).
-Windows subsystem for Linux users have a few more steps: https://openwrt.org/docs/guide-developer/toolchain/wsl
+**Any recent x86 Debian-flavored OS with the sudo package installed should be fine**. 
+- All image building dependencies are automatically installed on first run.
+- Windows subsystem for Linux users have additional steps. See here: https://openwrt.org/docs/guide-developer/toolchain/wsl
+- If building old OpenWRT versions (< = 19.x), using a Linux distro from the same era will save you some troubles with older Python build machine prerequisities.
+
+---
 
 ## 📖 Instructions
-
 
 1. 📥 Download the image builder script and make it executable:
    ```
    chmod +x x86-imagebuilder.sh
    ```
 
-2. 🛠️ Customize your package list in the `CUSTOM_PACKAGES` section. The included list of packages are examples and can be removed. Ensure each package is compatible with your OpenWRT build target & doesn't conflict with others. *(Search https://openwrt.org/packages/start for your desired package names or use the OpenWRT online firmware selector to check for any package conflicts.)*
+2. 🛠️ Customise your package recipie in the `CUSTOM_PACKAGES` section at the top of the script.
+   - The included default packages are examples only and can be changed.
+   - If you have issues with your build, check screen output for package selection errors or conflicts.
 
-
-3. ▶️ Run the script **without** sudo (it will prompt for sudo) and follow the setup prompts:
+4. ▶️ Run the script **without** sudo (it will prompt for sudo) and follow the prompts:
    ```
    ./x86-imagebuilder.sh
    ```
+5. **VMware ESXi VM users only**: Please see [here](https://github.com/itiligent/Easy-OpenWRT-Builder/blob/main/OWRT-ON-ESXi.md) for final ESXi VM conversion steps.
 
+---
 
 ## 📂 Persistent filesystem expansion WITHOUT resizing partitions
 
-It is possible to combine default SquashFS with a third **persistent** EXT4 data partition that won't be wiped by future sysupgrades.
+It is possible to add a large **persistent** EXT4 data partition that, unike any resized partitions, won't be wiped by a reset or sysupgrade.
 
-1. After image flash or vm launch, simply create a new EXT4 partition and add its new PART-UUID details into the OpenWRT /etc/fstab file.
-2. Next, re-run the script and add the new fstab file (along with any other custom files) to `$(pwd)/openwrt_inject_files` when prompted.
-3. Reflash or relaunch your system with the new fstab build. Now the EXT4 partition's location and details are permanently baked into the build.
+1. Add a usb drive (or vdisk) with an EXT4 partition and mount this with:
+   ```
+   block detect | uci import fstab
+   uci set fstab.@mount[-1].enabled='1'
+   uci commit fstab
+   reboot
+   ```
+Alternately, in Luci see http://your-routername/cgi-bin/luci/admin/system/mounts to mount the new disk via gui.
+   
+2. From OpenWRT, copy the (now updated) `/etc/fstab file`
+3. Re-run the build script, this time adding the copied `/etc/fstab` file to `$(pwd)/openwrt_inject_files` when prompted.
+   - The updated fstab file referencing the extra EXT4 partition will now be baked into the new build, making this storage persistent after a reset or sysupgrade.
+4. Update to this new build
 
-## ⚠️ Notes
+## 🌐 Sysupgrades with x86
+   -  OpenWRT Image Builder for x86 **does not support sysupgrade**.
+   -  Instead, for x86 upgrades simply overwrite your virtual machine disk with a newly built vdisk image.
 
-- **Note 1:** Unless expert, this script should only be used with x86 builds. Do not attempt to resize partitions of firmware images intended for specific router models with NAND flash memory.
-- **Note 2:** Images with modified default partition sizes may have issues with online attended sysupgrades. Resized paritions may require manual re-flashing with upgraded images created with the same resized settings.
+---
+
+## ⚠️ WARNING: Resize of OpenWRT partitions on flash memory devices
+
+- **Parition resize should only be used with x86 builds**.
+  - Resize of firmware paritions on router hardware flash memory **will 99.99999% brick your device!!**
+    
+    
+- **For OpenWRT experts only**:
+    - Make sure you know what you are doing (you alter this script's protections and flash at your own risk).
+    - Have a plan to unbrick before proceeding.
+    - Understand you will no longer be able to use attended sysupgrade:
+      - Attended sysupgrade returns the default partition schema (which may likely be a bad thing).
+      - You must manually create all future upgrade images with the same resized partition schema via this script.
 
