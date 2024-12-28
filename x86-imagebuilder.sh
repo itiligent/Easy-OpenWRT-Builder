@@ -55,31 +55,6 @@ CUSTOM_PACKAGES="blockd block-mount kmod-fs-ext4 kmod-usb2 kmod-usb3 kmod-usb-st
     -dnsmasq dnsmasq-full luci luci-app-ddns luci-app-samba4 luci-app-sqm sqm-scripts \
     luci-app-attendedsysupgrade curl nano luci-app-attendedsysupgrade"
 
-# wrt1900acsv2 recipe
-#CUSTOM_PACKAGES="-dnsmasq dnsmasq-full wsdd2 ca-bundle zoneinfo-australia-nz wpad-basic-openssl sqm-scripts \
-#    block-mount blockd kmod-usb-core kmod-usb2 kmod-usb3 kmod-usb-storage kmod-fs-ext4 kmod-fs-ntfs3 \
-#    nano tcpdump rsync curl socat luci-app-attendedsysupgrade luci-app-advanced-reboot \
-#    luci luci-app-ddns luci-app-sqm luci-app-https-dns-proxy https-dns-proxy luci-app-mwan3 mwan3 iptables-nft ip6tables-nft \
-#    luci-app-openvpn openvpn-openssl luci-app-samba4 samba4-server \
-#    kmod-usb-net-rtl8152 kmod-usb-net-asix-ax88179 kmod-mt7921u \
-#    kmod-usb-net kmod-usb-net-rndis"
-
-# My ESXi virtual router recipe (Skip Rclone to avoid resize of root partition)
-#CUSTOM_PACKAGES="open-vm-tools kmod-vmxnet3 \
-#    -dnsmasq dnsmasq-full logrotate wsdd2 ca-bundle zoneinfo-australia-nz wpad-basic-openssl sqm-scripts \
-#    block-mount blockd kmod-usb-core kmod-usb2 kmod-usb3 kmod-usb-storage kmod-fs-ext4 kmod-fs-ntfs3 \
-#    nano tcpdump rsync curl rclone socat \
-#    luci luci-app-ddns luci-app-sqm luci-app-https-dns-proxy https-dns-proxy luci-app-mwan3 mwan3 iptables-nft ip6tables-nft \
-#   luci-app-openvpn openvpn-openssl luci-app-samba4 samba4-server \
-#    kmod-igc kmod-mt7915e kmod-mt7916-firmware kmod-usb-net-rtl8152 kmod-mt7921u \
-#    kmod-usb-net kmod-usb-net-rndis"
-  
-# Notes on above ESXi recipe
-# Line 7: Ethernet and Wifi (Intel i226, MediaTek AW7916-NPD wifi6e, realtek 2.5gbe usb, AWUS036AXML wifi6e. (Removed kmod-usb-net-asix-ax88179)
-# Line 8: Android tethering - for iPhone add: usbmuxd kmod-usb-net-ipheth libimobiledevice usbutils
-# If building from source, consider removing the below extra NIC driver defaults not added with imagebulder: 
-# kmod-amazon-ena kmod-amd-xgbe kmod-bnx2 kmod-dwmac-intel kmod-igb kmod-tg3 kmod-forcedeth kmod-ixgbe kmod-r8169 kmod-phy-realek kmod-e1000 kmod-e1000e
-
 #######################################################################################################################
 # Mandatory static script parameters - do not edit unless expert
 #######################################################################################################################
@@ -265,16 +240,33 @@ if [[ ${CREATE_VM} = true ]] && [[ ${IMAGE_PROFILE} = "generic" ]]; then mkdir -
 
 # Option to pre-configure images with injected config files
 echo -e "${LYELLOW}"
-echo -e "    TO (OPTIONALLY) BAKE A CUSTOM CONFIG INTO YOUR OWRT IMAGE:"
-echo -e "    Copy your OWRT config files to ${CYAN}${INJECT_FILES}${LYELLOW} before proceeding."
+echo -e "    [Optional] TO BAKE A CUSTOM CONFIG INTO YOUR OWRT IMAGE"
+echo -e "    copy your OWRT config files to ${CYAN}${INJECT_FILES}${LYELLOW} before hitting enter..."
 echo
 read -p "    Press ENTER to begin the OWRT build..."
 echo -e "${NC}"
 
 # Install OWRT build system dependencies for recent Ubuntu/Debian.
 # See here for other distro dependencies: https://openwrt.org/docs/guide-developer/toolchain/install-buildsystem
+
+# Get the Python 3 version
+PYTHON_VERSION=$(python3 --version 2>&1 | awk '{print $2}')
+
+# Split the Python3 version into major, minor, and patch components
+IFS='.' read -r -a VERSION_PARTS <<< "$PYTHON_VERSION"
+MAJOR=${VERSION_PARTS[0]}
+MINOR=${VERSION_PARTS[1]}
+
+# Compare the distro Python3 version and install the correct build dependencies
+if (( MAJOR < 3 )) || (( MAJOR == 3 && MINOR <= 11 )); then
+    echo "Python version is less than or equal to 3.11"
     sudo apt-get install -y build-essential clang flex bison g++ gawk gcc-multilib g++-multilib \
     gettext git libncurses5-dev libssl-dev python3-distutils python3-setuptools rsync unzip zlib1g-dev file wget qemu-utils zstd  2>&1 | tee -a ${BUILD_LOG}
+else
+    echo "Python version is 3.12 or above"
+	sudo apt-get install -y build-essential clang flex bison g++ gawk gcc-multilib g++-multilib gettext git libncurses5-dev libssl-dev \
+    python3-setuptools rsync swig unzip zlib1g-dev file wget qemu-utils zstd 2>&1 | tee -a ${BUILD_LOG}
+fi
 
 # Download the image builder source if we haven't already
 if [ ! -f "${SOURCE_FILE}" ]; then
@@ -326,5 +318,4 @@ if [[ ${CREATE_VM} = true ]]; then
     # Optionally remove all extracted raw source images from $VMDIR
     rm -f $VMDIR/*.img
 fi
-
 
