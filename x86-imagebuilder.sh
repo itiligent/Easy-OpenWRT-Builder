@@ -177,9 +177,13 @@ conversion_cmd() {
             CONVERT="qemu-img convert -f raw -O vhdx"
             ;;
         5)
-            CONVERT="qemu-img convert -f raw -O vmdk" # May require vmkfstools -i source.vmdk destintation.vmdk to boot
-
-            ;;
+            CONVERT="qemu-img convert -f raw -O vmdk"
+	    echo -e "${LYELLOW}"
+            echo -e "    Be advised VMware images require further conversion for ESXi"
+	    echo -e "    From ESXi you must run: vmkfstools -i source.vmdk destintation.vmdk"
+            echo -e "${NC}"
+            sleep 5
+	    ;;
         *)
             echo "Invalid choice. Please select a number between 1 and 5."
             exit 1
