@@ -1,11 +1,10 @@
 #!/bin/bash
 #######################################################################################################################
 # Build and virtualize custom OpenWRT images for x86
-# DO NOT RESIZE NAND ROUTER FLASH PARTITiONS, RESIZE IS FOR x86 BUILDS ONLY!!
+# DO NOT RESIZE ROUTER NAND FLASH PARTITIONS, RESIZE IS FOR x86 BUILDS ONLY!!
 # David Harrop
-# January 2025
-#
-#######################################################################################################################
+# February 2025
+########################################################################################################################
 # CUSTOM PACKAGES [ADD YOUR CUSTOM PACKAGE RECIPE HERE]
 #######################################################################################################################
 
@@ -45,9 +44,9 @@ if ! id -nG "$USER" | grep -qw "sudo"; then
     exit 1
 fi
 
-# Trigger a prompt for sudo so it is used only where needed
+# Cache a prompt for sudo so it can be used used where needed
 echo
-echo -e "${CYAN}Script requires sudo privileges for some actions${NC}"
+echo -e "${CYAN}Script requires sudo permissions and will prompt if necessary...${NC}"
 echo
 sudo sudo -v
 echo
@@ -71,19 +70,19 @@ clear
     MOD_PARTSIZE=""          # true/false
     KERNEL_PARTSIZE=""       # variable set in MB
     ROOT_PARTSIZE=""         # variable set in MB (values over 8192 may give memory exhaustion errors)
-    KERNEL_RESIZE="32"       # OWRT default is 32 MB - don't change this without a specific reason.
-    ROOT_RESIZE="104"        # OWRT default is 104 MB. Don't go above 8192.
+    KERNEL_RESIZE_DEF="32"   # OWRT default is 32 MB - don't change this without a specific reason.
+    ROOT_RESIZE_DEF="104"    # OWRT default is 104 MB. Don't go above 8192.
     IMAGE_TAG=""             # ID tag is added to the completed image filename to uniquely identify the built image(s)
     CREATE_VM=""             # Create VMware images of the final build true/false
     RELEASE_URL="https://downloads.openwrt.org/releases/" # Where to obtain latest stable version number
 
-# Prompt for the desired OWRT version
+# Lookup the latest release version, and prompt for desired OWRT build version 
 if [[ -z ${VERSION} ]]; then
     LATEST_RELEASE=$(curl -s "$RELEASE_URL" | grep -oP "([0-9]+\.[0-9]+\.[0-9]+)" | sort -V | tail -n1)
     echo
     echo -e "${CYAN}Enter OpenWRT version to build:${NC}"
     while true; do
-        read -p "    Enter release version (latest stable release = $LATEST_RELEASE) [or hit enter for current snapshot] : " VERSION
+        read -p "    Enter a release version number (latest stable release = $LATEST_RELEASE), or hit enter for latest snapshot: " VERSION
         [[ "${VERSION}" = "" ]] || [[ "${VERSION}" != "" ]] && break
     done
     echo
@@ -92,7 +91,7 @@ fi
 # Prompt to resize image partitions only if x86
 if [[ -z ${MOD_PARTSIZE} ]] && [[ ${IMAGE_PROFILE} = "generic" ]]; then
     echo -e "${CYAN}Modify OpenWRT Partitions (x86 ONLY!):${NC}"
-    echo -e -n "    Modify partition sizes? [ n = no change (default) ] [y/n]: "
+    echo -e -n "    Modify partition sizes? [ y = resize | n = no changes (default) ] [y/N]: "
     read PROMPT
     if [[ ${PROMPT} =~ ^[Yy]$ ]]; then
         MOD_PARTSIZE=true
@@ -104,19 +103,18 @@ fi
 # Set custom partition sizes only if x86
 if [[ ${MOD_PARTSIZE} = true ]] && [[ ${IMAGE_PROFILE} = "generic" ]]; then
     [[ -z ${KERNEL_PARTSIZE} ]] &&
-        read -p "    x86 ONLY!: Enter KERNEL partition in MB [or hit enter for default]: " KERNEL_PARTSIZE
+        read -p "    x86 ONLY!: Enter KERNEL partition MB [OWRT default is 32 - hit enter for ${KERNEL_RESIZE_DEF}, or enter custom size]: " KERNEL_PARTSIZE
     [[ -z ${ROOT_PARTSIZE} ]] &&
-        read -p "    x86 ONLY!: Enter ROOT partition in MB (between 104 & 8192) [or hit enter for default]: " ROOT_PARTSIZE
+        read -p "    x86 ONLY!: Enter ROOT partition MB between 104 & 8192 [OWRT default is 104 - hit enter for ${ROOT_RESIZE_DEF}, or enter custom size]: " ROOT_PARTSIZE
 fi
 
-# If no kernel partition size value given, use the script default value
+# If no kernel partition size value given, create a default value
 if [[ ${MOD_PARTSIZE} = true ]] && [[ -z ${KERNEL_PARTSIZE} ]] && [[ ${IMAGE_PROFILE} = "generic" ]]; then
-    KERNEL_PARTSIZE=$KERNEL_RESIZE
+    KERNEL_PARTSIZE=$KERNEL_RESIZE_DEF
    fi
-   
-# If no root partition size value given, use the script default value
+# If no root partition size value given, create a default value
 if [[ ${MOD_PARTSIZE} = true ]] && [[ -z ${ROOT_PARTSIZE} ]] && [[ ${IMAGE_PROFILE} = "generic" ]]; then
-    ROOT_PARTSIZE=$ROOT_RESIZE
+    ROOT_PARTSIZE=$ROOT_RESIZE_DEF
 fi
 
 # Create a custom image name tag
@@ -124,20 +122,20 @@ if [[ -z ${IMAGE_TAG} ]]; then
     echo
     echo -e "${CYAN}Custom image filename identifier:${NC}"
     while true; do
-        read -p "    Enter text for inclusion in image filename [hit enter for \"my-custom-router\"]: " IMAGE_TAG
+        read -p "    Enter text to include in the image filename [Enter for \"custom\"]: " IMAGE_TAG
         [[ "${IMAGE_TAG}" = "" ]] || [[ "${IMAGE_TAG}" != "" ]] && break
     done
 fi
 # If no image name tag is given, create a default value
 if [[ -z ${IMAGE_TAG} ]]; then
-    IMAGE_TAG="my-custom-router"
+    IMAGE_TAG="custom"
 fi
 
 # Convert images for use in virtual environment?"
 if [[ -z ${CREATE_VM} ]] && [[ ${IMAGE_PROFILE} = "generic" ]]; then
     echo
     echo -e "${CYAN}Virtual machine image conversion:${NC}"
-    echo -e -n "    x86 ONLY!: Convert images for virtual machine use? [default = n] [y/N]: "
+    echo -e -n "    x86 ONLY!: Convert new OpenWRT images to a virtual machine format? [default = n] [y/N]: "
     read PROMPT
     if [[ ${PROMPT} =~ ^[Yy]$ ]]; then
         CREATE_VM=true
@@ -149,7 +147,7 @@ fi
 # Display the VM conversion menu
 echo
 show_menu() {
-    echo "    Select VM image format:"
+    echo "    Select VM conversion format:"
     echo "    1) QEMU...............: qcow2"
     echo "    2) QEMU Enhanced......: eqd"
     echo "    3) Oracle Virutalbox..: vdi"
@@ -178,13 +176,9 @@ conversion_cmd() {
             CONVERT="qemu-img convert -f raw -O vhdx"
             ;;
         5)
-            CONVERT="qemu-img convert -f raw -O vmdk"
-	    echo -e "${LYELLOW}"
-            echo -e "    Be advised VMware images require further conversion for ESXi"
-	    echo -e "    From ESXi you must run: vmkfstools -i source.vmdk destintation.vmdk"
-            echo -e "${NC}"
-            sleep 5
-	    ;;
+            CONVERT="qemu-img convert -f raw -O vmdk" # ESXi also requires 'vmkfstools -i source.vmdk destintation.vmdk' to boot
+
+            ;;
         *)
             echo "Invalid choice. Please select a number between 1 and 5."
             exit 1
@@ -202,12 +196,33 @@ fi
 # Setup the image builder working environment
 #######################################################################################################################
 
-# Dynamically create the OpenWRT download link
-if [[ ${VERSION} != "" ]]; then
-    BUILDER="https://downloads.openwrt.org/releases/${VERSION}/targets/${TARGET}/${ARCH}/openwrt-imagebuilder-${VERSION}-${TARGET}-${ARCH}.Linux-x86_64.tar.xz"
+# Dynamically create the OpenWRT download link whilst also supporting legacy version imagebuilder download compression formats
+if [[ -n ${VERSION} ]]; then
+    BASE_URL="https://downloads.openwrt.org/releases/${VERSION}/targets/${TARGET}/${ARCH}"
+    BUILDER_PREFIX="openwrt-imagebuilder-${VERSION}-${TARGET}-${ARCH}.Linux-x86_64.tar"
 else
-    BUILDER="https://downloads.openwrt.org/snapshots/targets/${TARGET}/${ARCH}/openwrt-imagebuilder-${TARGET}-${ARCH}.Linux-x86_64.tar.zst" # Current snapshot
+    BASE_URL="https://downloads.openwrt.org/snapshots/targets/${TARGET}/${ARCH}"
+    BUILDER_PREFIX="openwrt-imagebuilder-${TARGET}-${ARCH}.Linux-x86_64.tar"
 fi
+
+BUILDER_XZ="${BASE_URL}/${BUILDER_PREFIX}.xz"
+BUILDER_ZST="${BASE_URL}/${BUILDER_PREFIX}.zst"
+
+# Try downloading .zst first, fallback to .xz if .zst is unavailable
+if curl --head --silent --fail "${BUILDER_ZST}" >/dev/null; then
+    BUILDER="${BUILDER_ZST}"
+elif curl --head --silent --fail "${BUILDER_XZ}" >/dev/null; then
+    BUILDER="${BUILDER_XZ}"
+else
+    echo
+    echo "    Error: Could not find a valid image builder file for OpenWRT version ${VERSION:-snapshot}."
+    echo
+    exit 1
+fi
+
+echo
+echo "    Using image builder: ${BUILDER}"
+
 
 # Configure the build paths
 SOURCE_FILE="${BUILDER##*/}" # Separate the tar.xz file name from the source download link
@@ -244,34 +259,17 @@ mkdir -p "${INJECT_FILES}"
 if [[ ${CREATE_VM} = true ]] && [[ ${IMAGE_PROFILE} = "generic" ]]; then mkdir -p "${VMDIR}" ; fi
 
 # Option to pre-configure images with injected config files
-echo -e "${CYAN}"
-echo -e "    [Optional] TO BAKE YOUR CUSTOM CONFIG INTO NEW OWRT IMAGES:"
-echo -e "    Copy unzipped OpenWRT backup config files to ${CYAN}${INJECT_FILES}${LYELLOW} before hitting enter..."
+echo -e "${LYELLOW}"
+echo -e "    OPTIONAL: TO BAKE A CUSTOM CONFIG INTO YOUR OWRT IMAGE:"
+echo -e "    Before proceeding, copy your OWRT config files NOW to ${CYAN}${INJECT_FILES}${LYELLOW}"
 echo
-read -p "    Press ENTER to begin the OpenWRT build..."
+read -p "    Press ENTER to begin the OWRT build..."
 echo -e "${NC}"
 
 # Install OWRT build system dependencies for recent Ubuntu/Debian.
 # See here for other distro dependencies: https://openwrt.org/docs/guide-developer/toolchain/install-buildsystem
-
-# Get the Python 3 version
-PYTHON_VERSION=$(python3 --version 2>&1 | awk '{print $2}')
-
-# Split the Python3 version into major, minor, and patch components
-IFS='.' read -r -a VERSION_PARTS <<< "$PYTHON_VERSION"
-MAJOR=${VERSION_PARTS[0]}
-MINOR=${VERSION_PARTS[1]}
-
-# Compare the distro Python3 version and install the correct build dependencies
-if (( MAJOR < 3 )) || (( MAJOR == 3 && MINOR <= 11 )); then
-    echo "Python version is less than or equal to 3.11"
     sudo apt-get install -y build-essential clang flex bison g++ gawk gcc-multilib g++-multilib \
     gettext git libncurses5-dev libssl-dev python3-distutils python3-setuptools rsync unzip zlib1g-dev file wget qemu-utils zstd  2>&1 | tee -a ${BUILD_LOG}
-else
-    echo "Python version is 3.12 or above"
-	sudo apt-get install -y build-essential clang flex bison g++ gawk gcc-multilib g++-multilib gettext git libncurses5-dev libssl-dev \
-    python3-setuptools rsync swig unzip zlib1g-dev file wget qemu-utils zstd 2>&1 | tee -a ${BUILD_LOG}
-fi
 
 # Download the image builder source if we haven't already
 if [ ! -f "${SOURCE_FILE}" ]; then
