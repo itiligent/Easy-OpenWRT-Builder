@@ -70,8 +70,8 @@ clear
     MOD_PARTSIZE=""          # true/false
     KERNEL_PARTSIZE=""       # variable set in MB
     ROOT_PARTSIZE=""         # variable set in MB (values over 8192 may give memory exhaustion errors)
-    KERNEL_RESIZE_DEF="32"   # OWRT default is 32 MB - don't change this without a specific reason.
-    ROOT_RESIZE_DEF="104"    # OWRT default is 104 MB. Don't go above 8192.
+    KERNEL_RESIZE_DEF="16"   # OWRT default is 16 MB - don't change this without a specific reason.
+    ROOT_RESIZE_DEF="104"    # OWRT default is 104 MB. 1024 is the max if you want to use sysupgrade. Don't go above 8192.
     IMAGE_TAG=""             # ID tag is added to the completed image filename to uniquely identify the built image(s)
     CREATE_VM=""             # Create VMware images of the final build true/false
     RELEASE_URL="https://downloads.openwrt.org/releases/" # Where to obtain latest stable version number
@@ -103,9 +103,9 @@ fi
 # Set custom partition sizes only if x86
 if [[ ${MOD_PARTSIZE} = true ]] && [[ ${IMAGE_PROFILE} = "generic" ]]; then
     [[ -z ${KERNEL_PARTSIZE} ]] &&
-        read -p "    x86 ONLY!: Enter KERNEL partition MB [OWRT default is 32 - hit enter for ${KERNEL_RESIZE_DEF}, or enter custom size]: " KERNEL_PARTSIZE
+        read -p "    x86 ONLY!: Enter KERNEL partition MB [OWRT default is 16 - hit enter for ${KERNEL_RESIZE_DEF}, or enter custom size]: " KERNEL_PARTSIZE
     [[ -z ${ROOT_PARTSIZE} ]] &&
-        read -p "    x86 ONLY!: Enter ROOT partition MB between 104 & 8192 [OWRT default is 104 - hit enter for ${ROOT_RESIZE_DEF}, or enter custom size]: " ROOT_PARTSIZE
+        read -p "    x86 ONLY!: Enter ROOT partition MB between 104 & 1024 [OWRT default is 104 - hit enter for ${ROOT_RESIZE_DEF}, or enter custom size]: " ROOT_PARTSIZE
 fi
 
 # If no kernel partition size value given, create a default value
