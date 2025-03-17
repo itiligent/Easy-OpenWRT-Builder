@@ -30,9 +30,8 @@
 
 **Any recent x86 Debian-flavored OS with the sudo package installed should be fine**. 
 - All image building dependencies are automatically installed on first run.
-- Windows subsystem for Linux users have additional steps. See here: https://openwrt.org/docs/guide-developer/toolchain/wsl
 - If building old OpenWRT versions (< = 19.x), using a Linux distro from the same era will save you some troubles with older Python build machine prerequisities.
-
+- Windows subsystem for Linux users have additional steps. See below WSL section 
 ---
 
 ## 📖 Instructions
@@ -73,21 +72,35 @@ Alternately, in Luci see http://your-routername/cgi-bin/luci/admin/system/mounts
 4. Update to this new build
 
 ## 🌐 Sysupgrades with x86
-   -  OpenWRT Image Builder for x86 **does not support sysupgrade**.
-   -  Instead, for x86 upgrades simply overwrite your virtual machine disk with a newly built vdisk image.
+   -  **OpenWRT 23.x and below**: If resizing partitions, attended sysupgrade returns the default partition schema - which will likely be a bad thing! Instead, for x86 upgrades you must recreate a new image and re-flash.
+   - **OpenWRT Version 24.x onwards**: Supports attended sysupgrade with a resized root partitions up to 1024mb (with a few extra config settings).
 
 ---
 
+## 🛠️ Windows Subsystem for Linux Users: (tested WSL Debian 12).
+1. OpenWRT Imagebuilder needs a CASE SENSITIVE filesysyem
+    - From within Windows, create a new working directory for the script (eg. C:\users\\%username%\OWRT)
+    - From powershell `fsutil.exe file setCaseSensitiveInfo "C:\users\%username%\OWRT" enable`
+2. Remove Windows paths from Debian $PATH (spaces in paths breaks things) 
+```
+sudo tee -a /etc/wsl.conf << EOF > /dev/null
+[interop]
+appendWindowsPath = false
+EOF
+exit
+```
+3. Shutdown Debian `wsl --shutdown`
+4. Restart Debian `wsl -d Debian`
+5. From Windows or Debian, copy/save the build script `x86-imagebuilder.sh` to the newly created working dir above
+6. In Debian, change to the new working dir and make the script executable `chmod +x x86-imagebuilder.sh`
+7. From the new working dir in Debian, run the script with `./x86-imagebuilder.sh`
+   See here for more about OpenWRT Imagebuilder & WSL: https://openwrt.org/docs/guide-developer/toolchain/wsl
+
+
 ## ⚠️ WARNING: Resize of OpenWRT partitions on flash memory devices
-
-- **Parition resize should only be used with x86 builds**.
-  - Resize of firmware paritions on router hardware flash memory **will 99.99999% brick your device!!**
-    
-    
-- **For OpenWRT experts only**:
-    - Make sure you know what you are doing (you alter this script's protections and flash at your own risk).
+- **For bold OpenWRT experts only**:
+    - Parition resize should only be used with x86 builds. (The script needs to be manually edited to allow this)
+    - Make sure you know what you are doing (you edit or run this script at your own risk).
+    - Resize of firmware paritions on router hardware flash memory **will 99.99999% brick your device!!**
     - Have a plan to unbrick before proceeding.
-    - Understand you will no longer be able to use attended sysupgrade:
-      - Attended sysupgrade returns the default partition schema (which may likely be a bad thing).
-      - You must manually create all future upgrade images with the same resized partition schema via this script.
-
+      
