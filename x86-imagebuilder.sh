@@ -269,7 +269,7 @@ echo -e "${NC}"
 # Install OWRT build system dependencies for recent Ubuntu/Debian.
 # See here for other distro dependencies: https://openwrt.org/docs/guide-developer/toolchain/install-buildsystem
     sudo apt-get install -y build-essential clang flex bison g++ gawk gcc-multilib g++-multilib \
-    gettext git libncurses5-dev libssl-dev python3-distutils python3-setuptools rsync unzip zlib1g-dev file wget qemu-utils zstd  2>&1 | tee -a ${BUILD_LOG}
+    gettext git libncurses5-dev libssl-dev python3-setuptools rsync unzip zlib1g-dev file wget qemu-utils zstd  2>&1 | tee -a ${BUILD_LOG}
 
 # Download the image builder source if we haven't already
 if [ ! -f "${SOURCE_FILE}" ]; then
