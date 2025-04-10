@@ -22,6 +22,13 @@ LRED='\033[0;91m'
 LYELLOW='\033[0;93m'
 NC='\033[0m' # No Colour
 
+# Check if running in WSL
+IS_WSL=false
+if grep -q Microsoft /proc/version || grep -q microsoft /proc/version || grep -q WSL /proc/version; then
+    IS_WSL=true
+    echo -e "${CYAN}Detected Windows Subsystem for Linux (WSL) environment${NC}"
+fi
+
 # Make sure the user is NOT running this script as root
 if [[ $EUID -eq 0 ]]; then
     echo
@@ -252,11 +259,21 @@ fi
 rm -rf "${BUILD_ROOT}"
 rm -rf "${SOURCE_DIR}"
 
-# Create the destination directories
-mkdir -p "${BUILD_ROOT}"
-mkdir -p "${OUTPUT}"
-mkdir -p "${INJECT_FILES}"
-if [[ ${CREATE_VM} = true ]] && [[ ${IMAGE_PROFILE} = "generic" ]]; then mkdir -p "${VMDIR}" ; fi
+# Create the destination directories - use sudo if in WSL
+if [[ "$IS_WSL" = true ]]; then
+    sudo mkdir -p "${BUILD_ROOT}"
+    sudo mkdir -p "${OUTPUT}"
+    sudo mkdir -p "${INJECT_FILES}"
+    if [[ ${CREATE_VM} = true ]] && [[ ${IMAGE_PROFILE} = "generic" ]]; then sudo mkdir -p "${VMDIR}" ; fi
+    # Ensure ownership
+    sudo chown -R $USER:$USER "${BUILD_ROOT}" "${OUTPUT}" "${INJECT_FILES}"
+    [[ ${CREATE_VM} = true ]] && [[ ${IMAGE_PROFILE} = "generic" ]] && sudo chown -R $USER:$USER "${VMDIR}"
+else
+    mkdir -p "${BUILD_ROOT}"
+    mkdir -p "${OUTPUT}"
+    mkdir -p "${INJECT_FILES}"
+    if [[ ${CREATE_VM} = true ]] && [[ ${IMAGE_PROFILE} = "generic" ]]; then mkdir -p "${VMDIR}" ; fi
+fi
 
 # Option to pre-configure images with injected config files
 echo -e "${LYELLOW}"
