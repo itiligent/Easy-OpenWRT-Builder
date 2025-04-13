@@ -10,14 +10,14 @@
 
 ## ⚙️ Script Option Prompts
 
-1. Enter OpenWRT STABLE release version _(or hit enter for latest snapshot)_
+1. Enter OpenWRT STABLE release version, or hit enter for latest snapshot
 2. Modify partition sizes or keep OpenWRT defaults? [y/n] _(Y = follow the prompts)_
 3. Enter an image filename tag _(to uniquely identify your new image)_
 4. **Optional**: Convert OpenWRT images to VM disk image? [y/n] _(Y = select a VM format: qcow2, qed, vdi, vhdx or vmdk)_
-5. **Optional**: Bake a custom OpenWRT config into new OpenWRT images? _(follow on-screen directions)_
+5. **Optional**: Bake a custom OpenWRT config into new OpenWRT images? _(follow the prompts)_
 6. When the script completes new images are located at:
-    -  Native Firmware: `$(pwd)/openwrt_build_output/firmware_images`
-    - Virtual Machine:`$(pwd)/openwrt_build_output/vm`
+    - New Firmware Images: `$(pwd)/openwrt_build_output/firmware_images`
+    - Virtual Machine Images:`$(pwd)/openwrt_build_output/vm`
 
       
    ![image](https://github.com/itiligent/Easy-OpenWRT-Builder/blob/main/Screenshot.png)
@@ -98,9 +98,10 @@ exit
 
 
 ## ⚠️ WARNING: Resize of OpenWRT partitions on flash memory devices
-- **For bold OpenWRT experts only**:
-    - Parition resize should only be used with x86 builds. (The script needs to be manually edited to allow this)
-    - Make sure you know what you are doing (you edit or run this script at your own risk).
-    - Resize of firmware paritions on router hardware flash memory **will 99.99999% brick your device!!**
+- **For OpenWRT experts only**:
+    - Partition resize is for x86 builds. (You’ll need to manually edit the script for other architectures).
+    - Know what you are doing (use this script at your own risk).
+    - Resizing firmware partitions on router flash will likely **brick your device!!**
     - Have a plan to unbrick before proceeding.
+
       
