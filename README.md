@@ -98,9 +98,10 @@ exit
 
 
 ## ⚠️ WARNING: Resize of OpenWRT partitions on flash memory devices
-- **For bold OpenWRT experts only**:
-    - Parition resize should only be used with x86 builds. (The script needs to be manually edited to allow this)
-    - Make sure you know what you are doing (you edit or run this script at your own risk).
-    - Resize of firmware paritions on router hardware flash memory **will 99.99999% brick your device!!**
+- **For OpenWRT experts only**:
+    - Partition resize is for x86 builds. (You’ll need to manually edit the script for other architectures).
+    - Know what you are doing (use this script at your own risk).
+    - Resizing firmware partitions on router flash will likely **brick your device!!**
     - Have a plan to unbrick before proceeding.
+
       
