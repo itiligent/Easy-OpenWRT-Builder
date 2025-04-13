@@ -14,7 +14,7 @@
 2. Modify partition sizes or keep OpenWRT defaults? [y/n] _(Y = follow the prompts)_
 3. Enter an image filename tag _(to uniquely identify your new image)_
 4. **Optional**: Convert OpenWRT images to VM disk image? [y/n] _(Y = select a VM format: qcow2, qed, vdi, vhdx or vmdk)_
-5. **Optional**: Bake a custom OpenWRT config into new OpenWRT images? _(follow on-screen directions)_
+5. **Optional**: Bake a custom OpenWRT config into new OpenWRT images? _(follow the prompts)_
 6. When the script completes new images are located at:
     -  Native Firmware: `$(pwd)/openwrt_build_output/firmware_images`
     - Virtual Machine:`$(pwd)/openwrt_build_output/vm`
