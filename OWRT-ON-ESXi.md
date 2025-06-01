@@ -9,4 +9,4 @@ This problem is easily fixed from the ESXi CLI:
 4. Finish any other VM configs you need and boot. If you still can't boot, check secure boot settings on the VM are disabled.
 
 ### OWRT and thin provisioning
-Qemu does not support coversion to thin vmdk files. To create an thin OWRT image on ESXi you will need to **dd** copy the contents of the raw image to an existing thin provisioned OS boot disk. See this tutotial https://www.youtube.com/watch?v=gJoTYxk-EYU
+Qemu does not support conversion to thin vmdk files. To create an thin OWRT image on ESXi you will need to **dd** copy the contents of the raw image to an existing thin provisioned OS boot disk. See this tutotial https://www.youtube.com/watch?v=gJoTYxk-EYU
